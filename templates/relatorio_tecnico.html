@@ -546,7 +546,14 @@ content %}
         <label for="tecnico" style="font-size: small; font-weight: bold"
           >Técnico Responsável</label
         >
-        <select class="form-select" id="tecnico"></select>
+        <select class="form-select" id="tecnico">
+          <option
+            value="{{ tecnico.nome_relatorio }}"
+            data-cnpj="{{ tecnico.cpf_cnpj }}"
+          >
+            {{ tecnico.nome_relatorio }}
+          </option>
+        </select>
       </div>
 
       <div class="mb-3">
@@ -863,7 +870,14 @@ content %}
         <label for="tecnicoreparo" style="font-size: small; font-weight: bold"
           >Técnico Responsável</label
         >
-        <select class="form-select" id="tecnicoreparo"></select>
+        <select class="form-select" id="tecnicoreparo">
+          <option
+            value="{{ tecnico.nome_relatorio }}"
+            data-cnpj="{{ tecnico.cpf_cnpj }}"
+          >
+            {{ tecnico.nome_relatorio }}
+          </option>
+        </select>
       </div>
       <div class="mb-3">
         <label for="data" style="font-size: small; font-weight: bold"
@@ -1086,7 +1100,14 @@ content %}
         <label for="tecnicorecibo" style="font-size: small; font-weight: bold"
           >Técnico Responsável</label
         >
-        <select class="form-select" id="tecnicorecibo"></select>
+        <select class="form-select" id="tecnicorecibo">
+          <option
+            value="{{ tecnico.nome_relatorio }}"
+            data-cnpj="{{ tecnico.cpf_cnpj }}"
+          >
+            {{ tecnico.nome_relatorio }}
+          </option>
+        </select>
       </div>
       <div class="text-center mt-4">
         <button
@@ -1156,7 +1177,7 @@ content %}
     input.value = palavras.join(" ");
   }
 </script>
-
+<!--
 <script src="../static/js/tecnicos.js"></script>
 <script>
   document.addEventListener("DOMContentLoaded", () => {
@@ -1165,6 +1186,7 @@ content %}
     preencherSelectTecnicos("tecnicorecibo");
   });
 </script>
+-->
 <script>
   function exibirRelatorio() {
     const tipoRelatorio = document.getElementById("relatorioTipo").value;
@@ -1436,6 +1458,7 @@ content %}
       { value: "Capivari", text: "Capivari" },
       { value: "Limeira", text: "Limeira" },
       { value: "Sorocaba", text: "Sorocaba" },
+      { value: "Santos", text: "Santos" },
     ],
     SC: [
       { value: "Florianópolis", text: "Florianópolis" },
@@ -1459,7 +1482,6 @@ content %}
       { value: "Barra do Ribeiro", text: "Barra do Ribeiro" },
       { value: "Eldorado do Sul", text: "Eldorado do Sul" },
       { value: "Sapucaia do Sul", text: "Sapucaia do Sul" },
-      { value: "viamão", text: "Viamão" },
     ],
 
     PR: [
@@ -1511,6 +1533,34 @@ content %}
         newOption.text = option.text;
         selectCidade.appendChild(newOption);
       });
+    }
+  });
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    const params = new URLSearchParams(window.location.search);
+
+    function limpar(str) {
+      return (str || "").replace(/\s+/g, " ").trim();
+    }
+
+    if (params.has("nome")) {
+      document.getElementById("nome").value = params.get("nome");
+    }
+
+    const rua = params.get("rua");
+    const numero = params.get("numero");
+    const complemento = params.get("complemento");
+
+    if (rua || numero || complemento) {
+      const enderecoFormatado = `${limpar(rua)} Nº ${limpar(numero)} ${limpar(
+        complemento
+      )}`;
+      document.getElementById("endereco").value = enderecoFormatado;
+    }
+
+    if (params.has("bairro")) {
+      document.getElementById("bairro").value = params.get("bairro");
     }
   });
 </script>

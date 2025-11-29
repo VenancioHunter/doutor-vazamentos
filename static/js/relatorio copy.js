@@ -8,8 +8,7 @@ function validarCamposObrigatorios() {
         "cidade",
         "estado",
         "tecnico",
-        "data",
-        "selectTecnico"
+        "data"
     ];
 
     // Lista de mensagens de erro para campos vazios
@@ -32,61 +31,18 @@ function validarCamposObrigatorios() {
     return true; // Todos os campos estão preenchidos
 }
 
-// =============================
-// FUNÇÃO PARA GERAR ASSINATURA MANUSCRITA
-// =============================
-function gerarAssinatura(nome) {
-  const canvas = document.createElement("canvas");
-  canvas.width = 400;
-  canvas.height = 100;
-  const ctx = canvas.getContext("2d");
-
-  // Fundo branco
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // Fonte cursiva em azul Bic
-  ctx.font = "italic 38px 'Great Vibes', cursive";
-  ctx.fillStyle = "#0d47a1"; // azul de caneta Bic
-  ctx.fillText(nome, 10, 60);
-
-  return canvas.toDataURL("image/png");
-}
-
 
 async function gerarPDF() {
 
-    // Impede múltiplos cliques
-    const btn = document.getElementById("btnGerarPDF");
-    btn.disabled = true;
-    btn.innerText = "Gerando PDF...";
-
-    document.getElementById("loadingPopup").style.display = "flex";
-
      // Primeiro, valida os campos obrigatórios
     if (!validarCamposObrigatorios()) {
-        // Reativa o botão se houver erro
-        btn.disabled = false;
-        btn.innerText = "Baixar como PDF";
-        document.getElementById("loadingPopup").style.display = "none";
-        return;
-    }
-
-    const tecnicoSelect = document.getElementById("tecnico");
-    if (!tecnicoSelect.value || tecnicoSelect.value.trim() === "") {
-        alert("Por favor, selecione um técnico responsável antes de gerar o relatório.");
-        // Reativa o botão
-        btn.disabled = false;
-        btn.innerText = "Baixar como PDF";
-        document.getElementById("loadingPopup").style.display = "none";
-        return;
+        return; // Interrompe a geração do PDF se houver campos vazios
     }
 
     const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ compress: true });
+    const pdf = new jsPDF();
     let nome;
-    let cpf;
-    /*try {
+    try {
         // Definir logo
         const logoURL = "../static/img/logo.png";
         let imgLogo = new Image();
@@ -102,23 +58,7 @@ async function gerarPDF() {
         pdf.addImage(imgLogo, "PNG", 1, 1, 45, 45);
     } catch (error) {
         console.warn("Logo não carregada. Continuando sem logo.");
-    }*/
-    
-    
-    try {
-    // SHAPE SUPERIOR
-    const shapeTop = new Image();
-    shapeTop.src = "../static/img/shape_superior.png";
-    await new Promise((resolve, reject) => {
-      shapeTop.onload = resolve;
-      shapeTop.onerror = reject;
-    });
-    pdf.addImage(shapeTop, "PNG", 0, 0, 210, 55);
-  } catch (e) {
-    console.warn("Shape superior não carregado:", e);
-  }
-    
-    
+    }
   // Função para carregar imagens selecionadas no input e retornar um array de DataURLs
     const carregarImagensDoInput = async (inputId) => {
         const input = document.getElementById(inputId);
@@ -142,12 +82,12 @@ async function gerarPDF() {
         const imagensDataUrls = await carregarImagensDoInput("imagens");
 
         // Primeira página: conteúdo textual do relatório
-        /*pdf.setFontSize(16);
-        pdf.text("CLIENTE", 90, 45);*/
+        pdf.setFontSize(16);
+        pdf.text("CLIENTE", 90, 45);
 
         // Exemplo de conteúdo da primeira página
         nome = document.getElementById("nome").value;
-        cpf = document.getElementById("cpf").value;
+        const cpf = document.getElementById("cpf").value;
         const endereco = document.getElementById("endereco").value;
         const bairro = document.getElementById("bairro").value;
         const cidade = document.getElementById("cidade").value;
@@ -181,13 +121,8 @@ async function gerarPDF() {
 
         const larguraMaximaLinha = 180; // Ajuste conforme necessário
 
-          // =============================
-        // CABEÇALHO DO CLIENTE
-        // =============================
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(14);
-        pdf.text(`${nome}`, 10, 55);
         pdf.setFontSize(10);
+        pdf.text(`Nome: ${nome}`, 10, 55);
         pdf.text(`CPF/CNPJ: ${cpf}`, 10, 62);
         pdf.text(`Endereço: ${endereco}`, 10, 69);
         pdf.text(`Bairro: ${bairro}`, 10, 76);
@@ -248,7 +183,6 @@ async function gerarPDF() {
             "Palmeiras": "(62) 93300-6961",
 
             "São Paulo": "(11) 93300-3231",
-            "Santos": "(11) 93300-3231",
             "Osasco": "(11) 93300-3231",
             "Barueri": "(11) 93300-3231",
             "Campinas": "(19) 92001-6371",
@@ -289,7 +223,6 @@ async function gerarPDF() {
             "São José": "(48) 93300-4291",
             "Palhoça": "(48) 93300-4291",
             "Biguaçu": "(48) 93300-4291",
-            "Joinville": "(47) 92003-8280",
 
             "Porto Alegre": "(51) 92001-5474",
             "Canoas": "(51) 92001-5474",
@@ -324,21 +257,12 @@ async function gerarPDF() {
 
         const telefone = telefonesMap[cidade] || "Telefone não disponível";
         
-          // =============================
-  // INFORMAÇÕES DA EMPRESA
-  // =============================
-  pdf.setFontSize(14);
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont("helvetica", "bold");
-  pdf.text(`Central Vazamentos`, 130, 20);
-  pdf.setFont("helvetica", "normal");
-  pdf.setFontSize(10);
-  pdf.text(`CNPJ: 43.973.146/0001-26`, 130, 25);
-  pdf.text(`Tel: ${telefone}`, 130, 30);
-  pdf.text(`E-mail: comercial@centralvazamentos.com.br`, 130, 35);
-
-  pdf.setTextColor(0, 0, 0);
-
+        pdf.setFont("helvetica", "bold");
+        pdf.text(`Central Caça Vazamentos`, 150, 20);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`CNPJ 43.973.146/0001-26`, 150, 25);
+        pdf.setFont("helvetica", "normal");
+        pdf.text(`Tel: ${telefone}`, 150, 30);
 
 
         const selectedTechniques = [];
@@ -492,7 +416,7 @@ async function gerarPDF() {
         const tecnicoNome = tecnicoSelecionado.value; // Nome do técnico
         const tecnicoCNPJ = tecnicoSelecionado.getAttribute('data-cnpj'); // CNPJ do técnico
         const imagemAssinatura = tecnicoSelecionado.getAttribute('data-imagem');
-        /*
+
         if (imagemAssinatura) {
             const imagemAssinaturaURL = `../static/img/${imagemAssinatura}`;
             const imgAssinatura = new Image();
@@ -506,37 +430,25 @@ async function gerarPDF() {
 
             // Adicionar a assinatura no PDF
             pdf.addImage(imgAssinatura, "PNG", 15, 262, 45, 20); // Ajuste as dimensões conforme necessário
-        }*/
-
-        const assinaturaImagem = gerarAssinatura(tecnicoNome);
-        pdf.addImage(assinaturaImagem, "PNG", 24, 266, 45, 20);
+        }
         // Adicionar informações do técnico
-        pdf.text(`-----------------------------------`, 24, 280);    
-        pdf.text(`${tecnicoNome}`, 24, 285);
-        pdf.text(`CNPJ ${tecnicoCNPJ}`, 24, 290);
+        pdf.text(`-----------------------------------`, 15, 280);    
+        pdf.text(`${tecnicoNome}`, 15, 285);
+        pdf.text(`CNPJ ${tecnicoCNPJ}`, 15, 290);
 
 
 
         
-        try {
-            const shapeBottom = new Image();
-            shapeBottom.src = "../static/img/shape_inferior.png";
-            await new Promise((resolve, reject) => {
-            shapeBottom.onload = resolve;
-            shapeBottom.onerror = reject;
-            });
-            pdf.addImage(shapeBottom, "PNG", 0, 285, 210, 17);
-        } catch (e) {
-            console.warn("Shape inferior não carregado:", e);
-        }
-
-        pdf.setTextColor(255, 255, 255);
         if (data) {
-            const [ano, mes, dia] = data.split("-");
+            // Dividindo a string no formato ISO
+            const [ano, mes, dia] = data.split('-');
+            
+            // Montando a data no formato dd/mm/yyyy
             const dataFormatada = `${dia}/${mes}/${ano}`;
-            pdf.text(`${dataFormatada}, ${cidade}`, 140, 292);
+            
+            // Inserindo no PDF
+            pdf.text(`${dataFormatada}, ${cidade}`, 140, 285);
         }
-        pdf.setTextColor(0, 0, 0);
 
         // -----------------------------------------------------------------------------------------------------------
 
@@ -556,46 +468,18 @@ async function gerarPDF() {
             if (possuiVazamento === "sim" && revisarConta === "sim") {
                 pdf.addPage();
 
-                try {
-                    // SHAPE SUPERIOR
-                    const shapeTop = new Image();
-                    shapeTop.src = "../static/img/shape_superior.png";
-                    await new Promise((resolve, reject) => {
-                    shapeTop.onload = resolve;
-                    shapeTop.onerror = reject;
-                    });
-                    pdf.addImage(shapeTop, "PNG", 0, 0, 210, 55);
-                } catch (e) {
-                    console.warn("Shape superior não carregado:", e);
-                }
-
-                // =============================
-                // INFORMAÇÕES DA EMPRESA
-                // =============================
-                pdf.setFontSize(14);
-                pdf.setTextColor(255, 255, 255);
-                pdf.setFont("helvetica", "bold");
-                pdf.text(`Central Vazamentos`, 130, 20);
-                pdf.setFont("helvetica", "normal");
-                pdf.setFontSize(10);
-                pdf.text(`CNPJ: 43.973.146/0001-26`, 130, 25);
-                pdf.text(`Tel: ${telefone}`, 130, 30);
-                pdf.text(`E-mail: comercial@centralvazamentos.com.br`, 130, 35);
-
-                pdf.setTextColor(0, 0, 0);
-
-                //await logo(pdf);
+                await logo(pdf);
                 textUM = 'No local identificado não havia evidências superficiais de vazamento, de modo que não havia possibilidade de o cliente identificar a existência do vazamento no local sem os serviços técnicos contratados.'
                 textDois = 'As características acima indicadas podem ensejar a revisão das contas de água e de esgoto junto à Concessionária do Serviço Público de Saneamento Básico, a qual deverá ser instruída com este Laudo Técnico.';
                 const P1 = pdf.splitTextToSize(textUM, larguraMaximaLinha);
                 const P2 = pdf.splitTextToSize(textDois, larguraMaximaLinha);
                 pdf.setFont("helvetica", "bold"); 
-                pdf.text("SOLICITAÇÃO", 90, 70);
+                pdf.text("SOLICITAÇÃO", 90, 50);
                 pdf.setFont("helvetica", "normal");
-                pdf.text(P1, 10, 80);
-                pdf.text(P2, 10, 90);
+                pdf.text(P1, 10, 60);
+                pdf.text(P2, 10, 70);
 
-                /*if (imagemAssinatura) {
+                if (imagemAssinatura) {
                     const imagemAssinaturaURL = `../static/img/${imagemAssinatura}`;
                     const imgAssinatura = new Image();
                     imgAssinatura.src = imagemAssinaturaURL;
@@ -612,59 +496,37 @@ async function gerarPDF() {
                 // Adicionar informações do técnico
                 pdf.text(`-----------------------------------`, 15, 280);    
                 pdf.text(`${tecnicoNome}`, 15, 285);
-                pdf.text(`CNPJ ${tecnicoCNPJ}`, 15, 290);*/
+                pdf.text(`CNPJ ${tecnicoCNPJ}`, 15, 290);
 
-                const assinaturaImagem = gerarAssinatura(tecnicoNome);
-                pdf.addImage(assinaturaImagem, "PNG", 24, 266, 45, 20);
-                // Adicionar informações do técnico
-                pdf.text(`-----------------------------------`, 24, 280);    
-                pdf.text(`${tecnicoNome}`, 24, 285);
-                pdf.text(`CNPJ ${tecnicoCNPJ}`, 24, 290);
 
+
+                
+                if (data) {
+                    // Dividindo a string no formato ISO
+                    const [ano, mes, dia] = data.split('-');
+                    
+                    // Montando a data no formato dd/mm/yyyy
+                    const dataFormatada = `${dia}/${mes}/${ano}`;
+                    
+                    // Inserindo no PDF
+                    pdf.text(`${dataFormatada}, ${cidade}`, 140, 285);
+                }
             }
             else if (possuiVazamento === "nao" && revisarConta === "sim") {
                 pdf.addPage();
 
-                try {
-                    // SHAPE SUPERIOR
-                    const shapeTop = new Image();
-                    shapeTop.src = "../static/img/shape_superior.png";
-                    await new Promise((resolve, reject) => {
-                    shapeTop.onload = resolve;
-                    shapeTop.onerror = reject;
-                    });
-                    pdf.addImage(shapeTop, "PNG", 0, 0, 210, 55);
-                } catch (e) {
-                    console.warn("Shape superior não carregado:", e);
-                }
-
-                // =============================
-                // INFORMAÇÕES DA EMPRESA
-                // =============================
-                pdf.setFontSize(14);
-                pdf.setTextColor(255, 255, 255);
-                pdf.setFont("helvetica", "bold");
-                pdf.text(`Central Vazamentos`, 130, 20);
-                pdf.setFont("helvetica", "normal");
-                pdf.setFontSize(10);
-                pdf.text(`CNPJ: 43.973.146/0001-26`, 130, 25);
-                pdf.text(`Tel: ${telefone}`, 130, 30);
-                pdf.text(`E-mail: comercial@centralvazamentos.com.br`, 130, 35);
-
-                pdf.setTextColor(0, 0, 0);
-
-                //await logo(pdf);
+                await logo(pdf);
                 textUM = 'Após a inspeção técnica no local, não foram identificadas evidências superficiais ou ocultas de vazamento, de modo que a área analisada não apresentou quaisquer sinais de perda de água ou problemas relacionados.'
                 textDois = 'As características acima indicadas podem ensejar a revisão das contas de água e de esgoto junto à Concessionária do Serviço Público de Saneamento Básico, a qual deverá ser instruída com este Relatório Técnico.';
                 const P1 = pdf.splitTextToSize(textUM, larguraMaximaLinha);
                 const P2 = pdf.splitTextToSize(textDois, larguraMaximaLinha);
                 pdf.setFont("helvetica", "bold"); 
-                pdf.text("SOLICITAÇÃO", 90, 70);
+                pdf.text("SOLICITAÇÃO", 90, 50);
                 pdf.setFont("helvetica", "normal");
-                pdf.text(P1, 10, 80);
-                pdf.text(P2, 10, 90);
+                pdf.text(P1, 10, 60);
+                pdf.text(P2, 10, 70);
 
-                /*if (imagemAssinatura) {
+                if (imagemAssinatura) {
                     const imagemAssinaturaURL = `../static/img/${imagemAssinatura}`;
                     const imgAssinatura = new Image();
                     imgAssinatura.src = imagemAssinaturaURL;
@@ -681,36 +543,22 @@ async function gerarPDF() {
                 // Adicionar informações do técnico
                 pdf.text(`-----------------------------------`, 15, 280);    
                 pdf.text(`${tecnicoNome}`, 15, 285);
-                pdf.text(`CNPJ ${tecnicoCNPJ}`, 15, 290);*/
-
-                const assinaturaImagem = gerarAssinatura(tecnicoNome);
-                pdf.addImage(assinaturaImagem, "PNG", 24, 266, 45, 20);
-                // Adicionar informações do técnico
-                pdf.text(`-----------------------------------`, 24, 280);    
-                pdf.text(`${tecnicoNome}`, 24, 285);
-                pdf.text(`CNPJ ${tecnicoCNPJ}`, 24, 290);
+                pdf.text(`CNPJ ${tecnicoCNPJ}`, 15, 290);
 
 
-            }
-            try {
-                    const shapeBottom = new Image();
-                    shapeBottom.src = "../static/img/shape_inferior.png";
-                    await new Promise((resolve, reject) => {
-                    shapeBottom.onload = resolve;
-                    shapeBottom.onerror = reject;
-                    });
-                    pdf.addImage(shapeBottom, "PNG", 0, 285, 210, 17);
-                } catch (e) {
-                    console.warn("Shape inferior não carregado:", e);
-                }
 
-                pdf.setTextColor(255, 255, 255);
+                
                 if (data) {
-                    const [ano, mes, dia] = data.split("-");
+                    // Dividindo a string no formato ISO
+                    const [ano, mes, dia] = data.split('-');
+                    
+                    // Montando a data no formato dd/mm/yyyy
                     const dataFormatada = `${dia}/${mes}/${ano}`;
-                    pdf.text(`${dataFormatada}, ${cidade}`, 140, 292);
+                    
+                    // Inserindo no PDF
+                    pdf.text(`${dataFormatada}, ${cidade}`, 140, 285);
                 }
-                pdf.setTextColor(0, 0, 0);
+            }   
         };
 
         // ------------------------------------------------------------------------------------------------------------
@@ -732,44 +580,53 @@ async function gerarPDF() {
 
         // Adicionar cada imagem a partir da segunda página
         for (const dataUrl of imagensDataUrls) {
-            const imgComprimida = await comprimirImagem(dataUrl, 0.7); // 70% de qualidade (ótimo equilíbrio)
-
+            // Criar uma instância de imagem
             const img = new Image();
-            img.src = imgComprimida;
+            img.src = dataUrl;
+
+            // Esperar a imagem carregar antes de obter dimensões
             await new Promise((resolve, reject) => {
                 img.onload = resolve;
                 img.onerror = reject;
             });
 
+            // Dimensões reais da imagem
             const imgWidth = img.naturalWidth;
             const imgHeight = img.naturalHeight;
 
-            const maxWidth = 150;
-            const maxHeight = 100;
+            // Tamanho máximo permitido no PDF
+            const maxWidth = 150; // Largura máxima no PDF
+            const maxHeight = 100; // Altura máxima no PDF
+
+            // Calcular as dimensões proporcionalmente
             let width = imgWidth;
             let height = imgHeight;
 
             if (imgWidth > maxWidth || imgHeight > maxHeight) {
                 const widthRatio = maxWidth / imgWidth;
                 const heightRatio = maxHeight / imgHeight;
-                const scale = Math.min(widthRatio, heightRatio);
+                const scale = Math.min(widthRatio, heightRatio); // Usa o menor fator de escala
+
                 width = imgWidth * scale;
                 height = imgHeight * scale;
             }
 
-            if (yPosition + height > 280) {
-                pdf.addPage();
-                yPosition = 22;
-                positionAnexo = 20;
+            // Verificar se há espaço suficiente na página para a próxima imagem
+            if (yPosition + height > 280) { // Limite vertical da página
+                pdf.addPage(); // Cria uma nova página se a imagem não couber
+                yPosition = 22; // Reseta a posição inicial
+                positionAnexo = 20; // Reseta a posição do texto
             }
 
+            // Adicionar texto e imagem ao PDF
             pdf.text(`Imagem: ${countAnexo}`, 10, positionAnexo);
-            pdf.addImage(imgComprimida, "JPEG", 10, yPosition, width, height);
+            pdf.addImage(dataUrl, "PNG", 10, yPosition, width, height);
 
-            yPosition += height + 10;
-            positionAnexo = yPosition - 5;
+            // Atualizar posição para a próxima imagem
+            yPosition += height + 10; // Move a posição para a próxima imagem, considerando a altura ajustada
+            positionAnexo = yPosition - 5; // Ajusta a posição do texto da próxima imagem
             countAnexo += 1;
-            }
+        }
         }
 
     } catch (error) {
@@ -777,55 +634,7 @@ async function gerarPDF() {
     }
 
     // Salvar PDF
-    // Primeiro gera o blob
-    // MOSTRA POP-UP
-document.getElementById("loadingPopup").style.display = "flex";
-
-// Primeiro gera o blob antes de salvar
-const pdfBlob = pdf.output("blob");
-
-// Converte para File (compatível com celulares)
-const pdfFile = new File([pdfBlob], `relatorio-${Date.now()}.pdf`, {
-    type: "application/pdf"
-});
-
-
-
-// Monta o formData
-const formData = new FormData();
-formData.append("pdf", pdfFile);
-formData.append("nome", nome);
-formData.append("cpf", cpf);
-
-// Envia para o servidor
-fetch("/upload_pdf", {
-    method: "POST",
-    body: formData
-})
-.then(res => res.json())
-.then(data => {
-    console.log("Upload OK:", data);
-
-    // Depois do upload → baixa o PDF
     pdf.save(`Relatorio_Tecnico_${nome}.pdf`);
-
-    // Depois de tudo → fecha popup e ativa botão
-    setTimeout(() => {
-        document.getElementById("loadingPopup").style.display = "none";
-        btn.disabled = false;
-        btn.innerText = "Baixar como PDF";
-    }, 1200);
-})
-.catch(err => {
-    console.error("Falha no upload:", err);
-    alert("Erro ao enviar o relatório. Verifique sua conexão.");
-
-    // Libera botão e popup mesmo se der erro
-    document.getElementById("loadingPopup").style.display = "none";
-    btn.disabled = false;
-    btn.innerText = "Baixar como PDF";
-});
-
 }
 
 
@@ -848,19 +657,3 @@ async function logo(pdf) {
         console.warn("Logo não carregada. Continuando sem logo.");
     }
 }
-
-async function comprimirImagem(dataUrl, qualidade = 0.7) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL("image/jpeg", qualidade)); // converte e comprime
-    };
-  });
-}
-

@@ -1,8 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 import pyrebase
-from config import firebase_config
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import json
 from core.attendance.class_attendance import Attendance
@@ -11,13 +10,15 @@ from core.user.class_user_wallet import User_Wallet
 from core.user.class_user_attendant_wallet import User_Wallet_Attendant
 from core.user.class_user import User
 import pytz
-from config import db, auth
+from config import db, auth, storage
 from collections import defaultdict
 from core.cities.class_cities import Cities
 from core.financeiro.class_financeiro import Financeiro
+from flask_cors import CORS
 
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = 'secret'
 
 
@@ -158,6 +159,28 @@ def attendance():
 @app.route('/add_city', methods=['GET', 'POST'])
 @check_roles(['admin'])
 def add_city():
+    '''if request.method == 'POST':
+        uf_name = request.form['uf']
+        city_name = request.form['city']
+        phone_number = request.form['phone']
+
+        # Verifique se a cidade já existe
+        cities = db.child("cities").get().val() or {}
+        if city_name not in cities.values():
+            db.child("cities").push(city_name)
+
+            db.child("uf").child(uf_name).child(city_name).set(phone_number)
+            return redirect(url_for('add_city'))
+        else:
+            return "Cidade já existe"
+        db.child("uf").child(uf_name).child(city_name).set(phone_number)
+        return redirect(url_for('add_city'))'''
+
+    return render_template('add_city.html')
+
+@app.route('/add_city_sistema', methods=['GET', 'POST'])
+@check_roles(['admin'])
+def add_city_sistema():
     if request.method == 'POST':
         city_name = request.form['city']
 
@@ -165,12 +188,27 @@ def add_city():
         cities = db.child("cities").get().val() or {}
         if city_name not in cities.values():
             db.child("cities").push(city_name)
+
+            
             return redirect(url_for('add_city'))
         else:
             return "Cidade já existe"
-
+       
     return render_template('add_city.html')
 
+@app.route('/add_city_relatorio', methods=['GET', 'POST'])
+@check_roles(['admin'])
+def add_city_relatorio():
+    if request.method == 'POST':
+        uf_name = request.form['uf']
+        city_name = request.form['city']
+        phone_number = request.form['phone']
+
+        
+        db.child("uf").child(uf_name).child(city_name).set(phone_number)
+        return redirect(url_for('add_city'))
+
+    return render_template('add_city.html')
 
 @app.route('/list_cities')
 @check_roles(['admin'])
@@ -480,6 +518,7 @@ def vincular_tecnico():
     # Carregar todos os técnicos e cidades disponíveis
     all_users = db.child("users").get().val() or {}
     tecnicos = {uid: user for uid, user in all_users.items() if user['role'] == 'tecnico'}
+    
     all_cities = db.child("cities").get().val() or {}
 
     return render_template('vincular_tecnico.html', tecnicos=tecnicos, all_cities=all_cities)
@@ -571,6 +610,7 @@ def gerar_os():
         "numero_os": novo_numero_os,
         "city": request.form.get('city'),
         "name": request.form.get('name'),
+        "cpfcnpj": request.form.get('cpfcnpj'),
         "phone": request.form.get('phone'),
         "service": request.form.get('service'),
         "oldprice": request.form.get('price'),
@@ -627,41 +667,43 @@ def consulta_agenda():
 @check_roles(['tecnico'])
 def view_schedule():
     date_str = request.args.get('date')
-    # Converter a data fornecida para ano, mês e dia
-    try:
-        date = datetime.strptime(date_str, '%Y-%m-%d')
-    except ValueError:
-        return "Formato de data inválido."
 
-    
-    year = str(date.year)
-    month = f"{date.month:02d}"
-    day = f"{date.day:02d}"
-    
-    # Obtenha o ID do técnico logado
-    tecnico_id = session['user']
-    
-    cities = db.child('users').child(session['user']).child('cities').get().val()
+    ordens_servico_ordenadas = {}
+    costs_day = None
 
-    all_ordens_servico = {}
-    
-    # Buscar ordens de serviço para cada cidade
-    for city in cities:
-        ordens_servico_path = f"ordens_servico/{city}/{year}/{month}/{day}"
-        os_agendadas = db.child(ordens_servico_path).get().val() or {}
-        all_ordens_servico.update(os_agendadas)
-    
-    # Filtrar as ordens de serviço para o técnico logado
-    ordens_servico_tecnico = {os_id: os for os_id, os in all_ordens_servico.items() if os.get('tecnico_id') == tecnico_id}
-    
-    ordens_servico_ordenadas = dict(sorted(
-        ordens_servico_tecnico.items(),
-        key=lambda item: datetime.strptime(item[1]['start_datetime'], '%Y-%m-%d %H:%M')
-    ))
+    if date_str:
+        try:
+            date = datetime.strptime(date_str, '%Y-%m-%d')
+        except ValueError:
+            return "Formato de data inválido."
 
-    costs_day = User_Wallet.verify_costs(id=tecnico_id, date=date)
+        year = str(date.year)
+        month = f"{date.month:02d}"
+        day = f"{date.day:02d}"
 
-    return render_template('view_schedule.html', ordens_servico=ordens_servico_ordenadas, cities=cities, date=date_str, costs_day=costs_day)
+        tecnico_id = session['user']
+        cities = db.child('users').child(session['user']).child('cities').get().val()
+        all_ordens_servico = {}
+
+        for city in cities:
+            path = f"ordens_servico/{city}/{year}/{month}/{day}"
+            os_agendadas = db.child(path).get().val() or {}
+            all_ordens_servico.update(os_agendadas)
+
+        ordens_servico_tecnico = {
+            os_id: os
+            for os_id, os in all_ordens_servico.items()
+            if os.get('tecnico_id') == tecnico_id
+        }
+
+        ordens_servico_ordenadas = dict(sorted(
+            ordens_servico_tecnico.items(),
+            key=lambda item: datetime.strptime(item[1]['start_datetime'], '%Y-%m-%d %H:%M')
+        ))
+
+        costs_day = User_Wallet.verify_costs(id=tecnico_id, date=date)
+
+    return render_template('view_schedule.html', ordens_servico=ordens_servico_ordenadas, date=date_str, costs_day=costs_day)
 
 @app.route('/consulta_os_atendente', methods=['GET', 'POST'])
 @check_roles(['user', 'admin'])
@@ -889,7 +931,7 @@ def finalizar_os():
                 detalhes_pagamento["valor"] = data.get("cardValor")
                 detalhes_pagamento["parcelas"] = data.get("installments")
 
-                amount = "{:.2f}".format(float(convert_monetary_value(data.get('cardValor'))) - float(convert_monetary_value(taxa)))
+                amount = "{:.2f}".format(float(convert_monetary_value(data.get('cardValor'))) - (float(convert_monetary_value(taxa)) + float(convert_monetary_value(outros_custos_service))))
                 amount_financeiro = convert_monetary_value(data.get('cardValor'))
                 name = session['name']
                 method_payment = data.get("method")
@@ -1423,7 +1465,7 @@ def os(city, year, month, day, id):
     
     get_os = db.child("ordens_servico").child(city).child(year).child(month).child(day).child(id).get().val()
 
-
+    print(get_os)
     return render_template('os.html', os=get_os)
 
 @app.route('/users', methods=['GET', 'POST'])
@@ -1583,6 +1625,8 @@ def update_pendding():
 
     paymment_pendding = dict(db.child("wallet").child(os_city).child(year).child(month).child(day).child('transactions').child('pendding').child(transaction_id).get().val())
     
+    print(paymment_pendding)
+
     os_value_service = paymment_pendding['amount']
     method_payment = paymment_pendding['method']
     status_pagamento = "recebido"
@@ -1604,16 +1648,16 @@ def update_pendding():
 
 
     try:
-        Wallet.create_paymment_success(data=paymment_pendding, date=date_paymment, city=os_city)
-
+        id_create_transaction_wallet = Wallet.create_paymment_success(data=paymment_pendding, date=date_paymment, city=os_city)
+        print('1')
         Wallet.update_status_os(id=os_id, city=os_city, date=os_date, status_paymment=status_pagamento)
-
-        User_Wallet.create_transaction_success(data=paymment_pendding, date=date_paymment, city=os_city, id_tecnico=id_tecnico)
-
+        print('2')
+        id_create_transaction_user = User_Wallet.create_transaction_success(data=paymment_pendding, date=date_paymment, city=os_city, id_tecnico=id_tecnico)
+        print('3')
+        
+        Financeiro.post_transaction_pendente( numero_os=numero_os, id_os=os_id, os_city=os_city, os_date=os_date, date_payment=date_paymment, metodo_pagamento=method_payment, valor_recebido=amount_financeiro, valor_liquido=amount, taxa=taxa, outros_custos_service=outros_custos_service, observacoes_service=observacoes_service,  id_create_transaction_user=id_create_transaction_user, id_create_transaction_wallet=id_create_transaction_wallet)
+        print('4')
         db.child("wallet").child(os_city).child(year).child(month).child(day).child('transactions').child('pendding').child(transaction_id).remove()
-
-        Financeiro.post_transaction_pendente( numero_os=numero_os, id_os=os_id, os_city=os_city, os_date=os_date, date_payment=date_paymment, metodo_pagamento=method_payment, valor_recebido=amount_financeiro, valor_liquido=amount, taxa=taxa, outros_custos_service=outros_custos_service, observacoes_service=observacoes_service)
-
         #Financeiro.post_transaction_credito_tecnico(user=session['name'], date=os_date, amount=os_value_service, description=f'', method_payment=method_payment, origem=name_tecnico, id_origem=id_tecnico)
 
         #if os_value_service != amount:
@@ -1624,6 +1668,73 @@ def update_pendding():
     except:
         return jsonify({'status': 'conflict', 'message': 'Erro.'}), 400
     return redirect(url_for('adm_lista_paymments_pendentes'))
+
+
+@app.route('/update_pendding_tecnico', methods=['POST', 'GET'])
+def update_pendding_tecnico():
+
+    numero_os = request.form.get('numeroos')
+    os_id = request.form.get('paymmentIdOs')
+    os_city = request.form.get('paymmentCity')
+    os_date = request.form.get('osDate')
+    transaction_id = request.form.get('transactionId')
+    name_tecnico = request.form.get('osnametecnico')
+    amount = convert_monetary_value(request.form.get('amountAtualizado'))
+    taxa = convert_monetary_value( request.form.get('taxa') or "0.00")
+    outros_custos_service = convert_monetary_value( request.form.get('outrosCustosService') or "0.00")
+    observacoes_service =  request.form.get('observacaoService') or ""
+   
+    date_paymment = request.form.get('datePaymment')
+
+    # Tenta converter a nova data para ano, mês e dia
+    try:
+        date_firebase = datetime.strptime(os_date, '%Y-%m-%d')
+    except ValueError:
+        return "Formato de data inválido."
+
+    year = str(date_firebase.year)
+    month = f"{date_firebase.month:02d}"
+    day = f"{date_firebase.day:02d}"
+
+    
+
+    paymment_pendding = dict(db.child("wallet").child(os_city).child(year).child(month).child(day).child('transactions').child('pendding').child(transaction_id).get().val())
+    
+    os_value_service = paymment_pendding['amount']
+    method_payment = paymment_pendding['method']
+    status_pagamento = "recebido"
+    id_tecnico = paymment_pendding['tecnico_id']
+
+    
+
+
+    amount = "{:.2f}".format(float(convert_monetary_value(amount)) - (float(convert_monetary_value(taxa)) + float(convert_monetary_value(outros_custos_service))))
+    amount_financeiro = convert_monetary_value(request.form.get('amountAtualizado'))
+    
+
+    paymment_pendding['numero_os'] = numero_os
+    paymment_pendding['amount'] = amount
+    paymment_pendding['taxa'] = taxa
+    paymment_pendding['outros_custos_service'] = outros_custos_service
+    paymment_pendding['observacoes_service'] = observacoes_service
+    paymment_pendding['valor_bruto'] = os_value_service
+
+
+    try:
+       
+        id_create_transaction_wallet = Wallet.create_paymment_success(data=paymment_pendding, date=date_paymment, city=os_city)
+
+        Wallet.update_status_os(id=os_id, city=os_city, date=os_date, status_paymment=status_pagamento)
+
+        id_create_transaction_user = User_Wallet.create_transaction_success(data=paymment_pendding, date=date_paymment, city=os_city, id_tecnico=id_tecnico)
+        
+        Financeiro.post_transaction_pendente( numero_os=numero_os, id_os=os_id, os_city=os_city, os_date=os_date, date_payment=date_paymment, metodo_pagamento=method_payment, valor_recebido=amount_financeiro, valor_liquido=amount, taxa=taxa, outros_custos_service=outros_custos_service, observacoes_service=observacoes_service,  id_create_transaction_user=id_create_transaction_user, id_create_transaction_wallet=id_create_transaction_wallet)
+        
+        db.child("wallet").child(os_city).child(year).child(month).child(day).child('transactions').child('pendding').child(transaction_id).remove()
+
+    except:
+        return jsonify({'status': 'conflict', 'message': 'Erro.'}), 400
+    return redirect(url_for('listar_pendentes_tecnico'))
 
 
 @app.route('/adm_lista_os', methods=['GET', 'POST'])
@@ -1676,6 +1787,25 @@ def adm_lista_os():
 def relatorio():
    
     return render_template('relatorio.html')
+
+@app.route('/relatorio_tecnico', methods=['GET', 'POST'])
+@check_roles(['tecnico'])
+def relatorio_tecnico():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+
+    tecnico_id = session['user']
+
+    # Buscar dados do técnico no Firebase
+    tecnico_data = db.child('users').child(tecnico_id).get().val()
+
+    tecnico_info = {
+        "nome_relatorio": tecnico_data.get("nome_relatorio", ""),
+        "cpf_cnpj": tecnico_data.get("cpf_cnpj", ""),
+        "assinatura": tecnico_data.get("assinatura", None)  # caso exista imagem salva
+    }
+   
+    return render_template('relatorio_tecnico.html', tecnico=tecnico_info)
 
 @app.route('/orcamento', methods=['GET', 'POST'])
 def orcamento():
@@ -2182,15 +2312,77 @@ def user_update_percentage():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/user_update_tipo', methods=['POST'])
+def user_update_tipo():
+    if 'user' not in session:
+        return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+
+    data = request.get_json()
+    user_id = data.get('id')
+    role = data.get('role')
+
+    if not user_id or role is None:
+        return jsonify({'success': False, 'error': 'Dados inválidos'}), 400
+
+    try:
+        # Atualiza ou cria o campo 'percentage'
+        db.child("users").child(user_id).update({"role": role})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+@app.route('/user_update_cpf_cnpj', methods=['POST'])
+def user_update_cpf_cnpj():
+    if 'user' not in session:
+        return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+
+    data = request.get_json()
+    user_id = data.get('id')
+    cpf_cnpj = data.get('cpfcnpj')
+
+    if not user_id or cpf_cnpj is None:
+        return jsonify({'success': False, 'error': 'Dados inválidos'}), 400
+
+    try:
+        # Atualiza ou cria o campo 'percentage'
+        db.child("users").child(user_id).update({"cpf_cnpj": cpf_cnpj})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+    
+
+@app.route('/user_update_nome_relatorio', methods=['POST'])
+def user_update_nome_relatorio():
+    if 'user' not in session:
+        return jsonify({'success': False, 'error': 'Usuário não autenticado'}), 401
+
+    data = request.get_json()
+    user_id = data.get('id')
+    nome_relatorio = data.get('nome_relatorio')
+
+    if not user_id or nome_relatorio is None:
+        return jsonify({'success': False, 'error': 'Dados inválidos'}), 400
+
+    try:
+        # Atualiza ou cria o campo 'percentage'
+        db.child("users").child(user_id).update({"nome_relatorio": nome_relatorio})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/orcamentos', methods=['GET', 'POST'])
 def orcamentos():
    
     return render_template('orcamentos.html')
 
-@app.template_filter('datetimeformat')
+'''@app.template_filter("datetimeformat")
 def datetimeformat(value):
-    return datetime.fromtimestamp(value).strftime('%d/%m/%Y %H:%M')
+    if not value:
+        return ""  # ou "Sem data"
+    try:
+        return datetime.fromtimestamp(int(value)).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        return str(value)  # fallback
 
 
 @app.route("/financeiro/pendentes")
@@ -2211,7 +2403,7 @@ def listar_pendentes():
                         "id": pendente_id
                     }
 
-    return render_template("pendentes.html", pendentes=pendentes) 
+    return render_template("pendentes.html", pendentes=pendentes) '''
 
 
 @app.route("/financeiro/confirmar/<pendente_id>")
@@ -2220,7 +2412,8 @@ def confirmar_transacao(pendente_id):
 
     if pendente:
         # Converte timestamp para data
-        date = datetime.datetime.fromtimestamp(pendente['timestamp'])
+        #date = datetime.datetime.fromtimestamp(pendente['timestamp'])
+        date = datetime.fromtimestamp(pendente['timestamp'])
         year = str(date.year)
         month = f"{date.month:02d}"
         day = f"{date.day:02d}"
@@ -2233,6 +2426,214 @@ def confirmar_transacao(pendente_id):
 
     return redirect(url_for('listar_pendentes'))
 
+@app.route("/cancel_transaction_pendding", methods=["POST", "GET"])
+def cancel_transaction_pendding():
+    data = request.get_json()
+    data_mes = data.get("dataMes")
+    data_ano = data.get("dataAno")
+    id_transaction = data.get("idTransaction")
+    date_os = data.get("dateOs")
+    id_os = data.get("idOs")
+    city = data.get("city")
+    print(data)
+
+    try:
+        date = datetime.strptime(date_os, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({"error": "Formato de data inválido."}), 400
+
+    year = str(date.year)
+    month = f"{date.month:02d}"
+    day = f"{date.day:02d}"
+
+    try:
+        print(data)
+        db.child("ordens_servico").child(city).child(year).child(month).child(day).child(id_os).child("status_paymment").remove()
+
+        db.child("wallet").child(city).child(year).child(month).child(day).child('transactions').child('pendding').child(id_transaction).remove()
+       
+    except Exception as e:
+        return jsonify({'status': 'conflict', 'message': 'Erro ao cancelar a transação.'}), 400
+
+    return redirect(url_for('listar_pendentes'))
+
+
+@app.route('/data_analysis', methods=['GET', 'POST'])
+def data_analysis():
+   
+    return render_template('data_analysis.html')
+
+@app.route("/get_cidades")
+def get_cidades():
+    # pega os dados no firebase
+    cidades = db.child("uf").get().val() or {}
+    # retorna como JSON
+    return jsonify(cidades)
+
+@app.route("/buscar_dados", methods=["POST"])
+def buscar_dados():
+    dados = request.get_json()
+    cidades = dados.get("cidades", [])
+    data_inicio = dados.get("data_inicio")
+    data_fim = dados.get("data_fim")
+
+    if not cidades or not data_inicio or not data_fim:
+        return jsonify({"erro": "Parâmetros incompletos"}), 400
+
+    # 🔹 Converte as datas em objetos datetime
+    inicio = datetime.strptime(data_inicio, "%Y-%m-%d")
+    fim = datetime.strptime(data_fim, "%Y-%m-%d")
+
+    resultados = {}
+
+    # 🔹 Loop sobre as datas
+    dia_atual = inicio
+    while dia_atual <= fim:
+        ano = str(dia_atual.year)
+        mes = f"{dia_atual.month:02d}"
+        dia = f"{dia_atual.day:02d}"
+
+        for cidade in cidades:
+            caminho = f"ordens_servico/{cidade}/{ano}/{mes}/{dia}"
+            os_dia = db.child(caminho).get().val()
+
+            if os_dia:
+                if cidade not in resultados:
+                    resultados[cidade] = {}
+                resultados[cidade][f"{dia}/{mes}/{ano}"] = os_dia
+
+        dia_atual += timedelta(days=1)
+
+    return jsonify(resultados)
+
+
+@app.route('/comissoes', methods=['GET', 'POST'])
+@check_roles(['admin'])
+def comissoes():
+    if 'user' not in session:
+        return redirect(url_for('login'))
+    
+
+    return render_template('comissoes.html')
+
+
+@app.route("/buscar_ordens", methods=["POST"])
+def buscar_ordens():
+    data = request.get_json()
+    ano = str(data.get("ano"))
+    mes = f"{int(data.get('mes')):02d}"
+
+    ordens = []
+    tecnicos_cache = {} 
+
+    try:
+        # Buscar em todas as cidades (ativas)
+        cidades_ativas = db.child("ordens_servico").get()
+        if cidades_ativas.each():
+            for cidade in cidades_ativas.each():
+                cidade_nome = cidade.key()
+                dados_mes = db.child("ordens_servico").child(cidade_nome).child(ano).child(mes).get()
+                if dados_mes.each():
+                    for dia in dados_mes.each():
+                        for chave, item in dia.val().items():
+                            item["status"] = item.get("status_paymment", "aguardando")
+                            item["cidade"] = cidade_nome
+                            item["id_os"] = chave
+                            
+                            tecnico_id = item.get("user_id")
+                            if tecnico_id:
+                                # Se ainda não está no cache, busca no servidor
+                                if tecnico_id not in tecnicos_cache:
+                                    tecnico_data = db.child("users").child(tecnico_id).child("name").get().val()
+                                    tecnicos_cache[tecnico_id] = tecnico_data
+                                # adiciona o nome do técnico ao item
+                                item["tecnico_nome"] = tecnicos_cache[tecnico_id]
+
+                            ordens.append(item)
+
+
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+    print(ordens)
+    return jsonify({"success": True, "ordens": ordens})
+
+
+@app.route("/upload_pdf", methods=["POST"])
+def upload_pdf():
+
+    # Receber PDF
+    file = request.files.get("pdf")
+    if not file or file.filename == "":
+        return jsonify({"status": "error", "message": "PDF não recebido"}), 400
+
+
+    pdf_file = request.files["pdf"]
+
+    # Receber dados do cliente
+    cliente = {
+        "nome": request.form.get("nome"),
+        "cpf": request.form.get("cpf"),
+    }
+
+    # Salvar PDF no Storage
+    filename = f"relatorios/{int(time.time())}.pdf"
+    storage.child(filename).put(pdf_file)
+    pdf_url = storage.child(filename).get_url(None)
+
+    # Identificar técnico logado
+    tecnico_id = session.get("name")
+
+    relatorio_data = {
+        "pdf_url": pdf_url,
+        "filename": filename,
+        "tecnico": tecnico_id,
+        "cliente": cliente,
+        "timestamp": int(time.time())
+    }
+
+    # Salvar no Realtime Database
+    relatorio_id = db.child("relatorios").push(relatorio_data)
+
+    return jsonify({"status": "ok", "url": pdf_url})
+
+
+@app.template_filter('datetime')
+def datetime_filter(ts):
+    return datetime.fromtimestamp(ts).strftime("%d/%m/%Y %H:%M")
+
+@app.route('/relatorios_lista_pdf')
+def relatorios_lista_pdf():
+    relatorios = db.child("relatorios").get().val()
+
+    lista = []
+    if relatorios:
+        for key, item in relatorios.items():
+
+            # Garante que todos os campos existam
+            cliente = item.get("cliente", {})
+            tecnico = item.get("tecnico", "Não informado")
+            pdf_url = item.get("pdf_url") or item.get("url")  # compatível com versões antigas
+            timestamp = item.get("timestamp", 0)
+
+            lista.append({
+                "id": key,
+                "pdf_url": pdf_url,
+                "tecnico": tecnico,
+                "timestamp": timestamp,
+                "cliente": {
+                    "nome": cliente.get("nome", "Não informado"),
+                    "cpf": cliente.get("cpf", "Não informado"),
+                }
+            })
+
+    # Ordena corretamente do mais recente para o mais antigo
+    lista = sorted(lista, key=lambda x: x["timestamp"], reverse=True)
+
+    return render_template("relatorios_lista_pdf.html", relatorios=lista)
+
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5036)
+    app.run(debug=True, port=5037)

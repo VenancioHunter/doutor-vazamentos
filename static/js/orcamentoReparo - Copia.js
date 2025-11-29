@@ -104,7 +104,7 @@ async function gerarPDF() {
         //pdf.text("CLIENTE", 90, 45);
 
         // Exemplo de conteúdo da primeira página
-        nome = document.getElementById("nome").value;
+        const nome = document.getElementById("nome").value;
         const cpf = document.getElementById("cpf").value;
         const endereco = document.getElementById("endereco").value;
         const bairro = document.getElementById("bairro").value;
@@ -224,8 +224,6 @@ const total = valorLocalizacao + valorReparo;
             "Cajamar": "(19) 92001-6371",
             "Amparo": "(19) 92001-6371",
             "Capivari": "(19) 92001-6371",
-            "Limeira": "(19) 92001-6371",
-            "Sorocaba": "(11) 92015-4693",
 
             "Florianópolis": "(48) 93300-4291",
             "São José": "(48) 93300-4291",
@@ -236,22 +234,6 @@ const total = valorLocalizacao + valorReparo;
             "Canoas": "(51) 92001-5474",
             "Glorinha": "(51) 92001-5474",
             "Guaíba": "(51) 92001-5474",
-
-            "Curitiba": "(41) 92001-6421",
-            "São José dos Pinhais": "(41) 92001-6421",
-            "Pinhais": "(41) 92001-6421",
-            "Araucária": "(41) 92001-6421",
-            "Colombo": "(41) 92001-6421",
-            "Campo Largo": "(41) 92001-6421",
-            "Almirante Tamandaré": "(41) 92001-6421",
-
-            "Belo Horizonte": "(31) 93300-6395",
-            "Contagem": "(31) 93300-6395",
-            "Betim": "(31) 93300-6395",
-            "Sabará": "(31) 93300-6395",
-            "Nova Lima": "(31) 93300-6395",
-            "Santa Luzia": "(31) 93300-6395",
-            "Ibirité": "(31) 93300-6395",
 
         };
 
@@ -312,17 +294,7 @@ if (selectedTechniques.length > 0) {
 
     techniquesText = mainText + ".";
 } else {
-    
-    const outroServicoCheckbox = document.getElementById("outroServicoCheckbox");
-    const descricaoPersonalizada = document.getElementById("descricaoPersonalizada").value.trim();
-
-    if (outroServicoCheckbox.checked && descricaoPersonalizada) {
-        techniquesText = descricaoPersonalizada;
-    } else if (outroServicoCheckbox.checked && !descricaoPersonalizada) {
-        techniquesText = "Outro serviço informado, mas sem descrição detalhada.";
-    } else {
-        techniquesText = "Nenhuma técnica foi selecionada.";
-    }
+    techniquesText = "Nenhuma técnica foi selecionada.";
 }
 
 // Geração do PDF com o texto formatado
@@ -363,32 +335,47 @@ pdf.text(techniquesTextLinhas, 10, 117);
             }
         }
 
-        // Define a cor do fundo (por exemplo, cinza claro)
-        pdf.setFillColor(13, 85, 144); // RGB: 220, 220, 220
+        // ADICIONAR ITENS DO ORÇAMENTO AO PDF (DENTRO DO BLOCO DE SERVIÇOS)
+let posY = 207; // Começa logo após o TOTAL (mantendo alinhamento do seu layout)
+let totalOrcamento = 0;
 
-        // Desenha o fundo retangular antes do texto
-        pdf.rect(10, 174, 190, 9, "F"); // x, y, largura, altura, modo 'F' = filled
+// Verifica se há itens adicionados
+if (typeof itensOrcamento !== "undefined" && itensOrcamento.length > 0) {
+
+  // Cabeçalho visual igual ao anterior
+  pdf.setFillColor(13, 85, 144);
+  pdf.rect(10, posY, 190, 9, "F");
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont("helvetica", "bold");
+  pdf.text("ITENS", 15, posY + 6);
+  pdf.text("VALOR (R$)", 175, posY + 6);
+
+  posY += 15;
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFont("helvetica", "normal");
+
+  itensOrcamento.forEach(item => {
+    const valorFormatado = item.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    pdf.text(item.nome, 15, posY);
+    pdf.text(valorFormatado, 195, posY, { align: "right" });
+    posY += 7;
+    totalOrcamento += item.valor;
+  });
+
+  // Linha de separação
+  pdf.text(`-------------------------------------------------------------------------------------------------------------------------------------------------------------------`, 10, posY);
+  posY += 4;
+
+    // Total dos itens adicionados
+const totalFormatado = totalOrcamento.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  pdf.setFont("helvetica", "bold");
+  pdf.text("TOTAL", 15, posY + 1);
+  pdf.text(`R$ ${totalFormatado}`, 195, posY + 1, { align: "right" });
+  pdf.setFont("helvetica", "normal");
+}
+
+
         
-        //pdf.text(`-------------------------------------------------------------------------------------------------------------------------------------------------------------------`, 10, 177);
-        pdf.setTextColor(255, 255, 255); // Define a cor do texto (RGB)
-
-        // Texto em negrito e colorido
-        pdf.setFont("helvetica", "bold"); 
-        pdf.text("SERVIÇO", 15, 180);
-        pdf.text("VALOR", 175, 180);
-
-        // Restaura a cor para preto e fonte normal após o título
-        pdf.setTextColor(0, 0, 0);
-        pdf.setFont("helvetica", "normal");
-
-        //pdf.text(`-------------------------------------------------------------------------------------------------------------------------------------------------------------------`, 10, 183);
-        pdf.text(`Vistoria`, 15, 187);
-        pdf.text(`${formatLocalizacao}`, 170, 187);
-        //pdf.text(`Reparo`, 15, 192);
-        //pdf.text(`${formatReparo}`, 170, 192);
-        pdf.text(`-------------------------------------------------------------------------------------------------------------------------------------------------------------------`, 10, 195);
-        pdf.text(`${totalFormatado}`, 170, 198);
-        pdf.text(`TOTAL`, 15, 198);
         
 
         // Obter o técnico selecionado e o CNPJ
@@ -479,4 +466,3 @@ async function logo(pdf) {
         console.warn("Logo não carregada. Continuando sem logo.");
     }
 }
-
