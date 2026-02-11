@@ -2,16 +2,17 @@ import pyrebase
 
 
 
-db_link = "https://caca-vazamentos-default-rtdb.firebaseio.com"
+db_link = "https://doutor-vazamentos-default-rtdb.firebaseio.com"
 
 firebase_config = {
-    "apiKey": "AIzaSyDkdKimHiPbDJ82XtfO1bbJi7uQSTm5l04",
-    "authDomain": "caca-vazamentos.firebaseapp.com",
-    "databaseURL": "https://caca-vazamentos-default-rtdb.firebaseio.com",
-    "projectId": "caca-vazamentos",
-    "storageBucket": "caca-vazamentos.firebasestorage.app",
-    "messagingSenderId": "984183601822",
-    "appId": "1:984183601822:web:a8acc13e2312b6a615d98f",
+    "apiKey": "AIzaSyBYN5FqwF3g3GHUGamNYJOmMmYXu5BEpNk",
+    "authDomain": "doutor-vazamentos.firebaseapp.com",
+    "databaseURL": "https://doutor-vazamentos-default-rtdb.firebaseio.com",
+    "projectId": "doutor-vazamentos",
+    "storageBucket": "doutor-vazamentos.firebasestorage.app",
+    "messagingSenderId": "100259767518",
+    "appId": "1:100259767518:web:3fe2770abe96324d0f8e4f",
+    "measurementId": "G-1R65BYTFLV"
 }
 
 firebase = pyrebase.initialize_app(firebase_config)

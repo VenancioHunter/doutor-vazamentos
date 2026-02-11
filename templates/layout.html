@@ -1,5 +1,5 @@
 <!-- templates/layout.html -->
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
@@ -100,15 +100,13 @@
         {% if session.get('user') %} {% set user_role = session.get('role') %}
         {% if user_role == 'user' %}
         <a class="navbar-brand" href="{{ url_for('dashboard') }}"
-          >123 Caça Vazamentos</a
+          >Dr. Vazamentos</a
         >
         {% elif user_role == 'admin' %}
-        <a class="navbar-brand" href="{{ url_for('admin') }}"
-          >123 Caça Vazamentos</a
-        >
+        <a class="navbar-brand" href="{{ url_for('admin') }}">Dr. Vazamentos</a>
         {% elif user_role == 'tecnico' %}
         <a class="navbar-brand" href="{{ url_for('dashboard_tecnico') }}"
-          >123 Caça Vazamentos</a
+          >Dr. Vazamentos</a
         >
         {% endif %}
 
