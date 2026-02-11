@@ -63,4 +63,4 @@ jobs:
         with:
           app-name: 'doutorvazamentos'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_E504859F3FA045579B0EDB2D03D032F1 }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_D4EA369BAF854003AB3F7512407950AE }}
